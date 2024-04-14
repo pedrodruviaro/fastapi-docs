@@ -41,7 +41,7 @@
 - @app.get('/') -> path operation decorator
   - a função declarada abaixo será a executada quando a rota for acionada
 
-## path params
+## Path Parameters
 
 - convertidos automaticamente para a mesma tipagem definida
 - retornam erro se não passados na tipagem definida
@@ -54,7 +54,7 @@ def foo_handler(bar: str):
     return {"param": bar}
 ```
 
-## query params
+## Query Parameters
 
 - boolean params
   -> 1, True, true, on, yes
@@ -80,7 +80,7 @@ async def get_items(item_id: str, needy: str, skip: int = 0, limit: int = 10, q:
         }
 ```
 
-## request body
+## Request Body
 
 - request body -> pydantic model
 - quando um modelo de um atributo _default_, não é obrigatório
@@ -93,7 +93,7 @@ class Item(BaseModel):
     tax: float | None = None
 ```
 
-## query parameters and string validations
+## Query parameters and string validations
 
 - podemos declarar informações adicionais e validações para os parãmetros
 
@@ -111,10 +111,95 @@ async def get_items2(q: Annotated[str | None, Query(
     return results
 ```
 
-## path parameters and validations
+## Path Parameters and Validations
 
 ```py
 @app.get('/books/{id}')
 async def get_book_by_id(id: Annotated[int, Path(title="ID is a required param", gt=2, le=100)]):
     return {"id": id}
 ```
+
+## Body - Fields
+
+- utilizamos o _Field_ do pydantic para aumentar o nível da validação dos modelos
+
+```py
+class Item(BaseModel):
+    title: str = Field(min_length=2, max_length=100, title="Title field",
+                       description="String field to define a title")
+    is_paid: bool | None = Field(default=None, title="")
+    price: float | None = Field(default=None, title="", gt=0)
+    tax: float | None = None
+    id: int = Field(default_factory=generate_id, alias="_id")
+
+```
+
+- nesse exemplo, _generate_id_ é uma função que retorna um inteiro
+
+## Body - Nested models
+
+- python > 3.9 utilizamos List do módulo typing para definir lista nos modelos
+
+```py
+class Book(BaseModel):
+    tags: List[str] = []
+```
+
+- nesse exemplo, tags não deveriam se repetir. Podemos usar então o tipo _set_. Assim, se houver dados repetidos na requisição, os valores serão tratados e removidos.
+
+```py
+class Book(BaseModel):
+  tags: set[str] = set()
+```
+
+- submodelos como tipo também são válidos
+  - útil para adicionar validação, documentação, type hints e data conversion.
+
+```py
+class Image(BaseModel):
+  url: str
+  alt: str
+
+class Post(BaseModel):
+  title: str
+  tags: set[str] = set()
+  image: Image | None = None
+
+```
+
+- temos outros tipos válidos no pydantic -> https://docs.pydantic.dev/latest/concepts/types/
+- um deles é o _HttpUrl_, que permite validar strings no formato http.
+
+```py
+class Link(BaseModel):
+  href: HttpUrl
+  label: str
+```
+
+## Declare Request Example Data
+
+- podemos declarar esquemas JSON para usar como exemplo de requisição
+- os exemplos aparecem na documentação para auxiliar
+
+```py
+class Item(BaseModel):
+    name: str
+    description: str | None = None
+    price: float
+    tax: float | None = None
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "name": "foo",
+                    "description": "bar",
+                    "price": 4.5,
+                    "tax": 0.25
+                }
+            ]
+        }
+    }
+```
+
+## Extra Data Types

@@ -130,3 +130,28 @@ async def get_body(item1: Item1, item2: Item2, combined: Annotated[bool, Body(ti
         return {"items": items_combined, "combined": combined}
     else:
         return {"item1": item1, "item2": item2, "combined": combined}
+
+
+class StoreItem(BaseModel):
+    name: str
+    description: str | None = None
+    price: float
+    tax: float | None = None
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "name": "foo",
+                    "description": "bar",
+                    "price": 4.5,
+                    "tax": 0.25
+                }
+            ]
+        }
+    }
+
+
+@app.post("/store/item/new")
+async def create_store_item(item: StoreItem):
+    return {"data": item}
