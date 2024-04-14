@@ -1,8 +1,12 @@
 # FastAPI - Python
 
+> Seguindo a documentação oficial e testando coisas
+>
+> https://fastapi.tiangolo.com/learn/
+
 - No vscode, habilitar nas preferências do usuário
-- "python.analysis.typeCheckingMode": "basic"
-- FastAPI is all based on Pydantic. -> utilizado para validar e converter tipos de dados automaticamente
+- **"python.analysis.typeCheckingMode": "basic"**
+- FastAPI é toda baseada no Pydantic. -> utilizado para validar e converter tipos de dados automaticamente
 
 ## Iniciando um project com fast api
 
@@ -44,6 +48,12 @@
 - podemos definir Enums que retornam erro caso não sejam fornecidos
 - toda a documentação de parâmetros fica disponível na mesma documentação (/docs ou /redocs)
 
+```py
+@app.get('/foo/{bar}')
+def foo_handler(bar: str):
+    return {"param": bar}
+```
+
 ## query params
 
 - boolean params
@@ -53,11 +63,58 @@
 - lembrar de passar valores default para parâmetros não obrigatórios
 - parâmetros opcionais devem receber o default de None
 
+```py
+@app.get('/items/{item_id}')
+async def get_items(item_id: str, needy: str, skip: int = 0, limit: int = 10, q: str | None = None, kill: bool = True):
+    if not kill:
+        return {"msg": "not today", 'needy': needy}
+
+    if q:
+        return {
+            "q": q,
+            "item_id": item_id
+        }
+    else:
+        return {
+            "item_id": item_id
+        }
+```
+
 ## request body
 
 - request body -> pydantic model
 - quando um modelo de um atributo _default_, não é obrigatório
 
+```py
+class Item(BaseModel):
+    name: str
+    description: str | None = None
+    price: float
+    tax: float | None = None
+```
+
 ## query parameters and string validations
 
 - podemos declarar informações adicionais e validações para os parãmetros
+
+```py
+@app.get("/items")
+async def get_items2(q: Annotated[str | None, Query(
+        title="Query string",
+        description="My custom validation",
+        min_length=2,
+        max_length=50
+)] = None):
+    results = {"items": [{"item_id": "Foo"}, {"item_id": "Bar"}]}
+    if q:
+        return []
+    return results
+```
+
+## path parameters and validations
+
+```py
+@app.get('/books/{id}')
+async def get_book_by_id(id: Annotated[int, Path(title="ID is a required param", gt=2, le=100)]):
+    return {"id": id}
+```

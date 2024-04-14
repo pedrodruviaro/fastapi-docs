@@ -1,5 +1,5 @@
-from fastapi import FastAPI, Query
-from pydantic import BaseModel
+from fastapi import FastAPI, Query, Path, Body
+from pydantic import BaseModel, Field
 from enum import Enum
 from typing import Annotated
 
@@ -87,7 +87,7 @@ async def update_item(item_id: int, item: Item):
 
 
 @app.get("/items")
-async def get_items(q: Annotated[str | None, Query(
+async def get_items2(q: Annotated[str | None, Query(
         title="Query string",
         description="My custom validation",
         min_length=2,
@@ -95,5 +95,38 @@ async def get_items(q: Annotated[str | None, Query(
 )] = None):
     results = {"items": [{"item_id": "Foo"}, {"item_id": "Bar"}]}
     if q:
-        results.update({"q": q})
+        return []
     return results
+
+
+@app.get('/books/{id}')
+async def get_book_by_id(id: Annotated[int, Path(title="ID is a required param", gt=2, le=100)]):
+    return {"id": id}
+
+
+def generate_id() -> int:
+    return 1
+
+
+class Item1(BaseModel):
+    title: str = Field(min_length=2, max_length=100, title="Title field",
+                       description="String field to define a title")
+    is_paid: bool | None = Field(default=None, title="")
+    price: float | None = Field(default=None, title="", gt=0)
+    tax: float | None = None
+    id: int = Field(default_factory=generate_id, alias="_id")
+
+
+class Item2(BaseModel):
+    title: str
+
+
+@app.post('/body')
+async def get_body(item1: Item1, item2: Item2, combined: Annotated[bool, Body(title="If true retunrs a list containing all 2 items")] = False):
+    if combined:
+
+        items_combined = [item1, item2]
+
+        return {"items": items_combined, "combined": combined}
+    else:
+        return {"item1": item1, "item2": item2, "combined": combined}
