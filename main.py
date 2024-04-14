@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, Path, Body
+from fastapi import FastAPI, Query, Path, Body, Header
 from pydantic import BaseModel, Field
 from enum import Enum
 from typing import Annotated
@@ -152,6 +152,15 @@ class StoreItem(BaseModel):
     }
 
 
+items: list[StoreItem] = []
+
+
 @app.post("/store/item/new")
-async def create_store_item(item: StoreItem):
-    return {"data": item}
+async def create_store_item(item: StoreItem) -> list[StoreItem]:
+    items.append(item)
+    return items
+
+
+@app.get('/header')
+async def header_handler(user_agent: Annotated[str | None, Header()] = None):
+    return {"User-Agent": user_agent}

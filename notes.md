@@ -203,3 +203,86 @@ class Item(BaseModel):
 ```
 
 ## Extra Data Types
+
+- UUID
+- datetime.datetime
+  - 2008-09-15T15:53:00+05:00
+- datetime.date
+  - 2008-09-15
+
+## Header Parameters
+
+- usamos os Header() como tipo
+- \_ é convertido em _-_ e _snake_case_ é convertido para _CammelCase_ pelo fastAPI. Ou seja, \_user*agent* vira **User-Agent**
+
+```py
+@app.get('/header')
+async def header_handler(user_agent: Annotated[str | None, Header()] = None):
+    return {"User-Agent": user_agent}
+```
+
+- ao invés de somente _str_, podemos receber também _list[str]_ caso seja necessário
+
+## Request Model - Return Type
+
+- podemos definir o retorno do path operation
+- com isso, o retorno é validado pela FastAPI e adicionado um JSON Schema na documentação da OpenAPI
+- **limita e filtra a saída de dados da aplicação**
+
+```py
+# pode retornar a lista
+@app.post("/store/item/new")
+async def create_store_item(item: StoreItem) -> list[StoreItem]:
+    items.append(item)
+    return items
+
+# ou um item específico
+@app.post("/store/item/new")
+async def create_store_item(item: StoreItem) -> StoreItem:
+    return item
+
+```
+
+### response_model param
+
+- em alguns casos precisamos retornar um tipo diferente de dado, não todo o modelo. Definimos isso no parâmetro _response_model_ no decorator.
+
+```py
+@app.get("/items", response_model=Item) # pode ser list[Item]
+async def get_user(item: Item) -> Any:
+  return item
+```
+
+- um bom exemplo é aceitar um usuário completo e retornar alguns dados (sem a senha, por ex)
+
+```py
+class UserIn(BaseModel):
+    username: str
+    password: str
+    email: EmailStr
+    full_name: str | None = None
+
+
+class UserOut(BaseModel):
+    username: str
+    email: EmailStr
+    full_name: str | None = None
+
+
+@app.post("/user/", response_model=UserOut)
+async def create_user(user: UserIn) -> Any:
+    return user
+
+```
+
+- nesse caso, estamos retornando user (que deveria conter o campo de senha) mas o FastAPI filtra os dados e retorna apenas o necessário.
+
+- obs: **EmailStr** é um pacote do pydantic -> https://arc.net/l/quote/fveojhev
+
+  - instalar com $ pip install email-validator ou $ pip install pydantic[email]
+
+- o uso do _response_model_ se dá pois os editores podem reclamar da falta ou excesso de parâmetros no retorno. Colocando no decorator, o filtro dos campos é feito e tudo funciona. A documentação é atualizada da mesma forma.
+
+### Return Type and Data Filtering
+
+...
