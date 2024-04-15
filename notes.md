@@ -225,6 +225,7 @@ async def header_handler(user_agent: Annotated[str | None, Header()] = None):
 
 ## Request Model - Return Type
 
+- útil quando queremos retornar apenas parte dos dados, mas não todos. Ex: retornar apenas alguns campos do modelo
 - podemos definir o retorno do path operation
 - com isso, o retorno é validado pela FastAPI e adicionado um JSON Schema na documentação da OpenAPI
 - **limita e filtra a saída de dados da aplicação**
@@ -285,4 +286,183 @@ async def create_user(user: UserIn) -> Any:
 
 ### Return Type and Data Filtering
 
-...
+- podemos utilizar herança para definir o tipo de retorno
+- dessa forma, os editors não retornarão erro nem problemas de tipagem
+  - type notations, data filter e tooling support
+- automaticamente coloca nos docs o tipo de entrada e saída
+
+```py
+class BaseUser(BaseModel):
+    email: str
+    username: str
+
+
+class UserIn(BaseUser):
+    password: str = Field(title="Senha", min_length=6, max_length=20)
+
+
+@app.post('/users')
+async def create_user(user: UserIn) -> BaseUser:
+    return user
+```
+
+- utilizando _response_model_exclude_unset=True_ como parâmetro no decorator não retornaremos os campos com valor **default** que não estiverem no corpo da requisição
+
+```py
+@app.post("/endpoint", response_model_exclude_unset=True)
+```
+
+## Extra Models
+
+- em alguns casos podemos ter mais de uma relação de modelo. Por exemplo: um modelo de usuário recebido, um de retornado e um para salvar no banco de dados
+- um exemplo dessa funcionalidade
+
+```py
+
+class UserIn(BaseModel):
+    email: str
+    password: str
+    username: str
+
+
+class UserOut(BaseModel):
+    email: str
+    username: str
+
+
+class UserDb(BaseModel):
+    email: str
+    username: str
+    hashed_password: str
+
+
+def generate_hashed_password(value: str) -> str:
+    return f"mYsEcReT-{value}"
+
+
+def save_user(user: UserIn):
+    hashed_password = generate_hashed_password(user.password)
+    user_dict = user.model_dump()
+
+    user_in_db = UserDb(**user_dict, hashed_password=hashed_password)
+    print("User saved! ..not really")
+    print(user_in_db)
+    return user_in_db
+
+
+@app.post('/users', response_model=UserOut)
+async def create_user(user: UserIn):
+    saved_user = save_user(user)
+
+    return saved_user
+```
+
+- _response_model_ também pode recber um Union
+
+```py
+response_model=Union[CarModel, PlaneModel] # CarModel | PlaneModal não é uma sintaxe válida aqui
+```
+
+- _response_model_ também pode receber uma lista de modelos -> **list[CarModel]**
+
+## Response Status Code
+
+- podemos declarar o status da responsa no decorator
+
+```py
+@app.post("/users", status_code=201)
+async def create_user()
+  ...
+```
+
+- ao invés de decorar os status, podemos utilizar o helper _status_ importado de _fastapi_
+  - o valor é exatamente o mesmo. Serve apenas como facilitador na hora de escrever o código
+
+```py
+from fastapi import status
+
+@app.post("/users", status_code=status.HTTP_201_CREATED)
+async def create_user()
+  ...
+
+```
+
+## Handling Errors
+
+- para tratar erros nas respostas utilizamos a clase _HTTPException_ do _fastapi_.
+- não retornamos ela, usamos um _raise_
+
+```py
+from fastapi import HTTPException
+
+async def get_user()
+  raise HTTPException(status_code=404, detail="Item not found")
+```
+
+## Path Operation Configuration
+
+- podemos passar outros parâmetros ao decorator (_path operation decorator_), além dos já vistos anteriormente
+
+### **tags**
+
+- útil para criar abas na documentação
+
+```py
+@app.post("/items/", tags=["items"]) # pode ser um Enum (útil em grandes aplicações) -> tags=[Tags.items]
+```
+
+### summary and description
+
+- podemos prover algumas informações extras para fins de documentação
+
+```py
+@app.post(
+    "/items/",
+    response_model=Item,
+    summary="Create an item",
+    description="Create an item with all the information, name, description, price, tax and a set of unique tags",
+    response_description="The created item"
+)
+```
+
+- no caso de descrições mais longas, podemos usar o dosctring e escrever direto na função do path operation entre aspas triplas
+  - nesse caso, markdown é suportado
+
+### deprecated
+
+- caso precise colocar uma rota como _deprecated_, basta passar o parâmetro _deprecated=True_
+
+## Body - Updates
+
+- utilizando o PUT, trocaremos o conteúdo inteiro do dado pelo recebido na requisição
+- podemos utilizar o _jsonable_encoder_ para passar o dado recebido para o formado JSON
+
+```py
+from fastapi.encoders import jsonable_encoder
+update_item_encoded = jsonable_encoder(item)
+```
+
+- obs: operações de PUT trocam todos os dados, ou seja, valores default podem ser reescritos se não forem passados na requisição
+
+## CORS - (Cross-Origin Resource Sharing)
+
+```py
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+origins = [
+    "http://localhost.tiangolo.com",
+    "https://localhost.tiangolo.com",
+    "http://localhost",
+    "http://localhost:8080",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```

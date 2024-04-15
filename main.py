@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, Path, Body, Header
+from fastapi import FastAPI, Query, Path, Body, Header, status
 from pydantic import BaseModel, Field
 from enum import Enum
 from typing import Annotated
@@ -164,3 +164,41 @@ async def create_store_item(item: StoreItem) -> list[StoreItem]:
 @app.get('/header')
 async def header_handler(user_agent: Annotated[str | None, Header()] = None):
     return {"User-Agent": user_agent}
+
+
+class UserIn(BaseModel):
+    email: str
+    password: str
+    username: str
+
+
+class UserOut(BaseModel):
+    email: str
+    username: str
+
+
+class UserDb(BaseModel):
+    email: str
+    username: str
+    hashed_password: str
+
+
+def generate_hashed_password(value: str) -> str:
+    return f"mYsEcReT-{value}"
+
+
+def save_user(user: UserIn):
+    hashed_password = generate_hashed_password(user.password)
+    user_dict = user.model_dump()
+
+    user_in_db = UserDb(**user_dict, hashed_password=hashed_password)
+    print("User saved! ..not really")
+    print(user_in_db)
+    return user_in_db
+
+
+@app.post('/users', response_model=UserOut, status_code=status.HTTP_201_CREATED)
+async def create_user(user: UserIn):
+    saved_user = save_user(user)
+
+    return saved_user
